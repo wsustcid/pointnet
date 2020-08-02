@@ -1,0 +1,15 @@
+#PBS    -N  ptnet
+#PBS    -o  /ghome/wangshuai/UltraNet/pointnet/pbs/$PBS_JOBID.out
+#PBS    -e  /ghome/wangshuai/UltraNet/pointnet/pbs/$PBS_JOBID.err
+#PBS    -l nodes=1:gpus=1:s 
+#PBS    -r y
+cd $PBS_O_WORKDIR
+echo Time is `date`
+echo Directory is $PWD
+echo This job runs on following nodes:
+echo -n "Node:"
+cat $PBS_NODEFILE
+echo -n "Gpus:"
+cat $PBS_GPUFILE
+echo "CUDA_VISIBLE_DEVICES:"$CUDA_VISIBLE_DEVICES
+startdocker -u "-v /gdata/wangshuai:/gdata/wangshuai -w /ghome/wangshuai/UltraNet/pointnet" -c "python train.py --log_dir=log_200504" bit:5000/deepo

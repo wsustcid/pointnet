@@ -141,6 +141,10 @@ def conv2d(inputs,
 
   Returns:
     Variable tensor
+
+  Hints:
+    1. 通过定义Scope,并结合tf.get_variable,每次创建新的变量都是通过var定义，但实际名称不同
+    2. 这样不用再分别手动定义conv1_w,conv2_w
   """
   with tf.variable_scope(scope) as sc:
       kernel_h, kernel_w = kernel_size
@@ -166,6 +170,7 @@ def conv2d(inputs,
 
       if activation_fn is not None:
         outputs = activation_fn(outputs)
+        
       return outputs
 
 

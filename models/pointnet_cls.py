@@ -1,3 +1,10 @@
+'''
+@Author: Shuai Wang
+@Github: https://github.com/wsustcid
+@Version: 1.0.0
+@Date: 2020-04-23 23:01:52
+@LastEditTime: 2020-05-04 11:53:29
+'''
 import tensorflow as tf
 import numpy as np
 import math
@@ -16,16 +23,29 @@ def placeholder_inputs(batch_size, num_point):
 
 
 def get_model(point_cloud, is_training, bn_decay=None):
-    """ Classification PointNet, input is BxNx3, output Bx40 """
+    """ Classification PointNet
+    Args:
+    - point_cloud: model input with BxNx3
+    - is_training:
+    - bn_decay: 
+    Return:
+    - net: output with Bx40
+    - end_points: a dict, save feature transform matrix
+    """
     batch_size = point_cloud.get_shape()[0].value
     num_point = point_cloud.get_shape()[1].value
     end_points = {}
 
     with tf.variable_scope('transform_net1') as sc:
         transform = input_transform_net(point_cloud, is_training, bn_decay, K=3)
+    
+    # Input transform (B,N,3)*(B,3,3)->(B,N,3)
     point_cloud_transformed = tf.matmul(point_cloud, transform)
-    input_image = tf.expand_dims(point_cloud_transformed, -1)
-
+    
+    # add depth channel (B,N,3,1)
+    input_image = tf.expand_dims(point_cloud_transformed, -1) 
+    
+    # Feature learning (64,64) (B,N,3,64) -> (B,N,1,64)
     net = tf_util.conv2d(input_image, 64, [1,3],
                          padding='VALID', stride=[1,1],
                          bn=True, is_training=is_training,
@@ -38,9 +58,12 @@ def get_model(point_cloud, is_training, bn_decay=None):
     with tf.variable_scope('transform_net2') as sc:
         transform = feature_transform_net(net, is_training, bn_decay, K=64)
     end_points['transform'] = transform
+    
+    # Feature transform: (B,N,64)*(B,64,64)
     net_transformed = tf.matmul(tf.squeeze(net, axis=[2]), transform)
     net_transformed = tf.expand_dims(net_transformed, [2])
-
+    
+    # Feature learning (64,128,1024): (B,N,1,2014)
     net = tf_util.conv2d(net_transformed, 64, [1,1],
                          padding='VALID', stride=[1,1],
                          bn=True, is_training=is_training,
@@ -54,10 +77,11 @@ def get_model(point_cloud, is_training, bn_decay=None):
                          bn=True, is_training=is_training,
                          scope='conv5', bn_decay=bn_decay)
 
-    # Symmetric function: max pooling
+    # Feature aggregation (B,1,1,2014)
     net = tf_util.max_pool2d(net, [num_point,1],
                              padding='VALID', scope='maxpool')
-
+    
+    # Classification: (B,40)
     net = tf.reshape(net, [batch_size, -1])
     net = tf_util.fully_connected(net, 512, bn=True, is_training=is_training,
                                   scope='fc1', bn_decay=bn_decay)
@@ -73,8 +97,17 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
 
 def get_loss(pred, label, end_points, reg_weight=0.001):
-    """ pred: B*NUM_CLASSES,
-        label: B, """
+    """
+    Args:
+     - pred: classification output (B,40)
+     - label: (B)
+     - end_points: transform matrix dict
+    Return:
+    loss: classify_loss + mat_diff_loss * reg_weight
+    Hint:        
+     - transformation matrix in the feature space has much higher dimension than the spatial transform matrix, which greatly increases the difficulty of optimization. 
+     - We therefore add a regularization term to our softmax training loss. We constrain the feature transformation matrix to be close to orthogonal matrix: Lreg = ||KI −AA^TK||    
+    """
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred, labels=label)
     classify_loss = tf.reduce_mean(loss)
     tf.summary.scalar('classify loss', classify_loss)

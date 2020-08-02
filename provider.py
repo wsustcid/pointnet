@@ -5,25 +5,29 @@ import h5py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
+'''
 # Download dataset for point cloud classification
+# the dataset have to saved in 'data' folder
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 if not os.path.exists(DATA_DIR):
     os.mkdir(DATA_DIR)
 if not os.path.exists(os.path.join(DATA_DIR, 'modelnet40_ply_hdf5_2048')):
     www = 'https://shapenet.cs.stanford.edu/media/modelnet40_ply_hdf5_2048.zip'
-    zipfile = os.path.basename(www)
+    zipfile = os.path.basename(www) # modelnet40_ply_hdf5_2048.zip
     os.system('wget %s; unzip %s' % (www, zipfile))
     os.system('mv %s %s' % (zipfile[:-4], DATA_DIR))
     os.system('rm %s' % (zipfile))
-
+'''
 
 def shuffle_data(data, labels):
     """ Shuffle data and labels.
-        Input:
-          data: B,N,... numpy array
-          label: B,... numpy array
-        Return:
-          shuffled data, label and shuffle indices
+    Input:
+     - data: B,N,... numpy array
+     - labels: B,... numpy array
+    Return:
+     - shuffled data
+     - labels
+     - shuffle indices
     """
     idx = np.arange(len(labels))
     np.random.shuffle(idx)
@@ -31,12 +35,11 @@ def shuffle_data(data, labels):
 
 
 def rotate_point_cloud(batch_data):
-    """ Randomly rotate the point clouds to augument the dataset
-        rotation is per shape based along up direction
-        Input:
-          BxNx3 array, original batch of point clouds
-        Return:
-          BxNx3 array, rotated batch of point clouds
+    """ Randomly rotate the point clouds to augument the dataset. rotation is per shape based along up direction.
+    Input:
+     - batch_data: BxNx3 array, original batch of point clouds
+    Return:
+     - ratated_data: BxNx3 array, rotated batch of point clouds
     """
     rotated_data = np.zeros(batch_data.shape, dtype=np.float32)
     for k in range(batch_data.shape[0]):
@@ -73,10 +76,12 @@ def rotate_point_cloud_by_angle(batch_data, rotation_angle):
 
 def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
     """ Randomly jitter points. jittering is per point.
-        Input:
-          BxNx3 array, original batch of point clouds
-        Return:
-          BxNx3 array, jittered batch of point clouds
+    Input:
+     - batch_data: BxNx3 array, original batch of point clouds
+     - sigma:
+     - clip:
+    Return:
+     - BxNx3 array, jittered batch of point clouds
     """
     B, N, C = batch_data.shape
     assert(clip > 0)
@@ -85,6 +90,12 @@ def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
     return jittered_data
 
 def getDataFiles(list_filename):
+    """
+    Arg:
+     - list_filename: a txt file which saves data file path
+    Return:
+     - a list of data files path, such as [data/modelnet40_ply_hdf5_2048/ply_data_train0.h5, ...]
+    """
     return [line.rstrip() for line in open(list_filename)]
 
 def load_h5(h5_filename):
@@ -94,6 +105,13 @@ def load_h5(h5_filename):
     return (data, label)
 
 def loadDataFile(filename):
+    """
+    Args:
+     - filename: a h5 data filename
+    Return: 
+     - data
+     - label
+    """
     return load_h5(filename)
 
 def load_h5_data_label_seg(h5_filename):
